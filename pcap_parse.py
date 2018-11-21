@@ -13,7 +13,7 @@ typedef struct pcaprec_hdr_s {
 } pcaprec_hdr_t;
 '''
 
-with open('test_bluetooth.pcap', 'rb') as f:
+with open('files.pcap', 'rb') as f:
     data = f.read()
 
 global_header = data[:24]
@@ -33,13 +33,14 @@ while data:
     data = data[16:]
 
     # read packet data, need to discard first 4 bytes, dont know why...
-    pkt.update({'data': data[:pkt['orig_len']+4]}) 
+    pkt.update({'data': data[4:pkt['orig_len']]}) 
 
     # discard packet data
     data = data[pkt['orig_len']:]
     pkt['incl_len'] -= 4
     pkt['orig_len'] -= 4
     packets.append(pkt)
+    print(len(packets));
 
 # Print the results
 print(packets)
