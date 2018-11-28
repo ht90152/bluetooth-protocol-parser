@@ -14,6 +14,7 @@ typedef struct pcaprec_hdr_s {
 '''
 from field_spec import header_field, data_field
 from field_spec import parse_field
+from field_spec import int_from_bits
 import os
 
 # temporary input for testing
@@ -30,16 +31,18 @@ global_header = data[:24]
 data = data[24:] # remove global header
 
 packets = list()
+tot_len = len(data)
 
 while data: 
+    print('Progress: {}'.format(len(data)/tot_len), end='\r')
     # parse packet header
     pkt, data = parse_field(header_field, data)
 
     # parse packet data and the remaining data
     packet_data, data = parse_field(data_field[pkt['packet_type']], data)
     unparsed_data = data[:packet_data['Length']]
+    
     pkt.update({'data': packet_data, 'unparsed_data': unparsed_data})
-
     data = data[packet_data['Length']:]
 
     # discard packet data
@@ -47,10 +50,11 @@ while data:
     pkt['orig_len'] -= 4
     packets.append(pkt)
 
-#################Print parsed packets#####################################
+########Print parsed packets (Uncomment to print)##############
 '''
 for packet in packets:
     print(packet)
+    input()
 print()
 print('packet numbers: {}'.format(len(packets)))
 '''

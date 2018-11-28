@@ -1,50 +1,75 @@
-hci_command = [
-        ['OCF', 'OGF', 'Length'],
-        [10, 6, 8]
-        ]
+acl_data = {
+    'Length': 16,
+    'Channel_ID': 16,
+    'Payload': -1
+}
 
-hci_acl_data = [
-        ['Handle', 'PB_Flag', 'BC_Flag', 'Length'],
-        [12, 2, 2, 16]
-        ]
+hci_command = {
+    'OCF': 10,
+    'OGF': 6,
+    'Length': 8
+}
 
-hci_sync_data = [
-        ['Handle', 'Packet_Status', 'RFU', 'Length'],
-        [12, 2, 2, 8]
-        ]
+hci_acl_data = {
+    'Handle': 12,
+    'PB_Flag': 2,
+    'BC_Flag': 2,
+    'Length': 16,
+    'acl_data': acl_data
+}
 
-hci_event = [
-        ['Event', 'Length'],
-        [8, 8]
-        ]
-# -1 means INF
+hci_sync_data = {
+    'Handle': 12,
+    'Packet_Status': 2,
+    'RFU': 2,
+    'Length': 8
+}
 
-header_field = [
-        ['ts_sec', 'ts_usec', 'incl_len', 'orig_len', None, 'packet_type'],
-        [32, 32, 32, 32, 32, 8],
-        ]
+hci_event = {
+    'Event': 8,
+    'Length': 8
+}
+
+header_field = {
+    'ts_sec': 32,
+    'ts_usec': 32,
+    'incl_len': 32,
+    'orig_len': 32,
+    None: 32,
+    'packet_type': 8
+}
 
 data_field= {
-        1: hci_command,
-        2: hci_acl_data,
-        3: hci_sync_data,
-        4: hci_event,
-        }
+    1: hci_command,
+    2: hci_acl_data,
+    3: hci_sync_data,
+    4: hci_event,
+}
 
 def parse_field(field, data):
     ret = dict()
-    length = len(field[0])
     end = 0
-    for i in range(length):
-        if field[0][i] != None:
-            ret.update({field[0][i]: data[end: end+field[1][i]]})
-            ret.update({
-                field[0][i]: int_from_bits(data, end, end+field[1][i])
+    for key, value in field.items():
+        if key is None:
+            pass
+        elif type(value) is int:
+            if value < 0:
+                end8 = int(end/8)
+                ret.update({
+                    key: data[end8:] 
                 })
-        end += field[1][i]
+            else:
+                ret.update({
+                    key: int_from_bits(data, end, end+value)
+                })
+        elif type(value) is dict:
+            end8 = int(end/8)
+            inner, _ = parse_field(value, data[end8: end8+ret['Length']])
+            ret.update({key: inner})
+            continue
+        end += value 
 
     data = data[int(end/8):]
-
 
     return ret, data
         
