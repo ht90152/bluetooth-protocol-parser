@@ -1,3 +1,5 @@
+from event_contents import event_code, event_parameters
+
 acl_data = {
     'Length': 16,
     'Channel_ID': 16,
@@ -27,7 +29,8 @@ hci_sync_data = {
 
 hci_event = {
     'Event': 8,
-    'Length': 8
+    'Length': 8,
+    'Parameter': event_parameters  # all event_parameter are in event_contents.py
 }
 
 header_field = {
@@ -39,14 +42,16 @@ header_field = {
     'packet_type': 8
 }
 
-data_field= {
+data_field = {
     1: hci_command,
     2: hci_acl_data,
     3: hci_sync_data,
     4: hci_event,
 }
 
+
 def parse_field(field, data):
+    hci_type = check_push_value_count = 0
     ret = dict()
     end = 0
     for key, value in field.items():
@@ -54,25 +59,64 @@ def parse_field(field, data):
             pass
         elif type(value) is int:
             if value < 0:
-                end8 = int(end/8)
+                end8 = int(end / 8)
+                # value < -1 -> special case and convert to decimal number
                 ret.update({
-                    key: data[end8:]
+                    key: data[end8:] if value > -2 else int.from_bytes(data[end8:], 'little')
                 })
             else:
+                tmp_hci_type = hci_type
+                hci_type, typeValue = typeCode_to_typeValue(key, int_from_bits(data, end, end + value))
+                hci_type = hci_type if tmp_hci_type == 0 else tmp_hci_type  # if hci_type is changed, then restoring hci_type by tmp_value
+                check_push_value_count += 1
                 ret.update({
-                    key: int_from_bits(data, end, end+value)
+                    key: typeValue
                 })
         elif type(value) is dict:
-            end8 = int(end/8)
-            inner, _ = parse_field(value, data[end8: end8+ret['Length']])
+            end8 = int(end / 8)
+            # guide the correct event parameter
+            value = value[ret['Event']] if 'Event' in ret else value
+            inner, _ = parse_field(value, data[end8: end8 + ret['Length']])
             ret.update({key: inner})
             continue
+        if check_push_value_count == 1: update_right_value_in_dict(field)
         end += value
 
-    data = data[int(end/8):]
+    data = data[int(end / 8):]
 
     return ret, data
 
+
 def int_from_bits(data, start, end):
     num = int.from_bytes(data, 'little')
-    return (num>>start) & ((1<<(end-start))-1)
+    return (num >> start) & ((1 << (end - start)) - 1)
+
+
+# on Case 4(event), Event code converts to Event name by its code.
+# e.g, Event code : 14H (20d) > Event name: Mode Change
+# You can modify name and code content,
+# but it must contain event_code[pure_int] ... to get event name
+# return hci_type by data_field and name
+def typeCode_to_typeValue(key, pure_int):
+    if key in header_field:
+        return -1, pure_int
+    elif key in data_field[1]:
+        return 1, pure_int
+    elif key in data_field[2]:
+        return 2, pure_int
+    elif key in data_field[3]:
+        return 3, pure_int
+    elif key in data_field[4]:
+        return 4, event_code[pure_int]
+    else:
+        return 0, pure_int
+
+
+def update_right_value_in_dict(data_dict):
+    # get first key and value to update last parameter
+    first_parmtr = [list(data_dict.keys())[0], list(data_dict.values())[0]]
+
+    for key, value in data_dict.items():
+        # -1 and -2 belong to special case, -3 and -4 belong to reserved field
+        if type(value) is int and value < -4:
+            value = value * -1 * first_parmtr[1]  # index 1 is first value in dict
