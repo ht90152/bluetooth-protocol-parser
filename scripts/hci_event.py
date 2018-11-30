@@ -459,17 +459,3 @@ event_parameters = {
         'Remote_SAM_RX_Availability': 8
     }
 }
-
-print(event_code[6])
-print(event_parameters[event_code[6]])
-
-if event_parameters[event_code[2]]:
-
-    print('correct')
-else :
-    print('error')
-
-def return_json_event():
-    print(event_code[2])
-    print(event_parameters[event_code[2]])
-
