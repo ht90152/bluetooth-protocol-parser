@@ -80,12 +80,12 @@ event_code = {
 event_parameters = {
     'Inquiry Complete': {'Status': 8},
     'Inquiry Result': {'Num_Responses': 8,
-                       'BD_ADDR': 48,  # TODO need to 48*Num_Responses
-                       'Page_Scan_Repetition_Mode': 8,  # TODO need to 8*Num_Responses
-                       'Reserved1': 8,  # TODO need to 8*Num_Responses
-                       'Reserved2': 8,  # TODO need to 8*Num_Responses
-                       'Class_of_Device': 24,  # TODO need to 24*Num_Responses
-                       'Clock_Offset': 16  # TODO need to 16*Num_Responses
+                       'BD_ADDR': -48,
+                       'Page_Scan_Repetition_Mode': 0,
+                       'Reserved1': -8,
+                       'Reserved2': -8,
+                       'Class_of_Device': -24,
+                       'Clock_Offset': -16
                        },
     'Connection Complete': {
         'Status': 8,
@@ -152,7 +152,7 @@ event_parameters = {
     'Command Complete': {
         'Num_HCI_Command_Packets': 8,
         'Command_Opcode': 16,
-        'Return_Parameters': 9999  # TODO SIZE DEPEND ON COMMAND
+        'Return_Parameters': -2  # TODO SIZE DEPEND ON COMMAND
     },
     'Command Status': {
         'Status': 8,
@@ -172,8 +172,8 @@ event_parameters = {
     },
     'Number Of Completed Packets': {
         'Number_of_Handles': 8,
-        'Connection_of_Handle': 16,  # TODO Need to process Number of Handle * 16
-        'HC_Num_Of_Completed_Packets': 16  # TODO Need to process Number of Handle * 16
+        'Connection_of_Handle': -16,
+        'HC_Num_Of_Completed_Packets': -16
     },
     'Mode Change': {
         'Status': 8,
@@ -183,8 +183,8 @@ event_parameters = {
     },
     'Return Link Keys': {
         'Num_Keys': 8,
-        'BD_ADDR': 48,  # TODO 48* Num_Keys
-        'Link_Key': 128  # TODO 128* Num_Keys
+        'BD_ADDR': -48,
+        'Link_Key': -128
     },
     'PIN Code Request': {
         'BD_ADDR': 48
@@ -198,7 +198,7 @@ event_parameters = {
         'Key_Type': 8
     },
     'Loopback Command': {
-        'HCI_Command_Packet': 8888  # TODO Depend on command
+        'HCI_Command_Packet': -2  # TODO Depend on command
     },
     'Data Buffer Overflow': {
         'Link_type': 8
@@ -237,12 +237,12 @@ event_parameters = {
     },
     'Inquiry Result with RSSI': {
         'Num_Responses': 8,
-        'BD_ADDR': 48,  # TODO 48 * num_response
-        'Page_Scan_Repetition_Mode': 8,  # TODO 8*num_response
-        'Reserved': 8,  # TODO 8 * NUM_RESPONSE
-        'Class_of_Device': 24,  # TODO 24*NUM_RESPONSE
-        'Clock_Offset': 16,  # TODO 16*NUM_RESPONSE
-        'RSS': 8  # TODO 8*NUM_RESPONSE
+        'BD_ADDR': -48,
+        'Page_Scan_Repetition_Mode': 0,
+        'Reserved': -8,
+        'Class_of_Device': -24,
+        'Clock_Offset': -16,
+        'RSS': -8
     },
     'Read Remote Extended Features Complete': {
         'Status': 8,
@@ -371,9 +371,9 @@ event_parameters = {
     'Number Of Completed Data Blocks': {
         'Total_Num_Data_Blocks': 16,
         'Num_of_Handles': 8,
-        'Handle': 16,  # TODO 16xNum_of_Handles
-        'Num_Of_Completed_Packets': 16,  # TODO 16xNum_of_Handles
-        'Num_Of_Completed_Blocks': 16  # TODO 16xNum_of_Handles
+        'Handle': -16,
+        'Num_Of_Completed_Packets': -16,
+        'Num_Of_Completed_Blocks': -16
     },
     'AMP Start Test': {
         'Status': 8,
@@ -428,7 +428,7 @@ event_parameters = {
         'Receive Status': 8,
         'Fragment': 8,
         'Data_Length': 8,
-        'Data': 88888  # TODO DATA+LENGTH OCTETS
+        'Data': -2  # TODO DATA_LENGTH OCTETS
     },
     'Connectionless Slave Broadcast Timeout': {
         'BD_ADDR': 48,
@@ -463,8 +463,13 @@ event_parameters = {
 print(event_code[6])
 print(event_parameters[event_code[6]])
 
+if event_parameters[event_code[2]]:
 
-def return_Json_Event():
+    print('correct')
+else :
+    print('error')
+
+def return_json_event():
     print(event_code[2])
     print(event_parameters[event_code[2]])
 
