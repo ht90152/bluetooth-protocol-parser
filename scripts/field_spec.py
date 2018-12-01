@@ -129,7 +129,40 @@ avdtp_field = {
     0: {
         'Signal_ID': 6,
         'RFA': 2,
-        'Other_data': -1
+        'Choose': 'Signal_ID',
+        3: {
+            'ACP_RFA': 2,
+            'ACP_SEID': 6,
+            'INT_RFA': 2,
+            'INT_SEID': 6,
+            'Capabilities': {
+                'Service_Category': 8,
+                'LOSC': 8,
+                'Service': {
+                    'Category': 8,
+                    'LOSC': 8,
+                    'RFA': 4,
+                    'Media_Type': 4,
+                    'Codec_Type': 8,
+                    'Data': -1
+                }
+            }
+        },
+        7: {
+            'Signal_Start': -1
+        },
+        9: {
+            'Signal_Suspend': -1
+        },
+        -1: {
+            'Data': -1
+        },
+        'Name': {
+            3: 'SetConfiguration',
+            7: 'Signal Start',
+            9: 'Signal Suspend',
+            -1: 'Undefined'
+        }
     },
     1: {
         'NOSP': 8,
@@ -148,7 +181,7 @@ avdtp_field = {
     }
 }
 
-avctp_field = { # TODO: this might be wrong
+avctp_field = {
     'IPID': 1,
     'C/R': 1,
     'Packet_type': 2,
@@ -161,7 +194,26 @@ psm_field = {
     1: sdp_field,
     23: avctp_field,
     25: avdtp_field,
-    4105: {  # This is actually not the real one, its dynamically allocated!
+}
+
+a2dp_field = {
+    0: {
+        'SID_count': 4,
+        'Extension': 1,
+        'Padding': 1,
+        'Version': 2,
+        'Payload_Type': 8,
+        'Seq': 16,
+        'Timestamp': 32,
+        'Sync SID': 32,
+        'SBC_Codec': {
+            'Frame_numbers': 4,
+            'RFA': 1,
+            'Last_Packet': 1,
+            'Starting_Packet': 1,
+            'Fragmented': 1,
+            'Frames': -1
+        }
     }
 }
 
@@ -173,13 +225,23 @@ dynamic_CID_table_name = {
     4105: 'no!'
 }
 
+data_start_status = False
+data_service_type = None
 def parse_field(field, data, cur_channel_id=None):
+    global data_start_status
+    global data_service_type
     hci_type = check_push_value_count = 0
     ret = dict()
     end = 0
     for key, value in field.items():
         if key is None:
             pass
+        elif key == 'Signal_Start':
+            data_start_status = True
+            break
+        elif key == 'Signal_Suspend':
+            data_start_status = False
+            break
         elif key == 'Choose':
             choose = ret[value]
             if choose not in field: choose = -1
@@ -194,7 +256,10 @@ def parse_field(field, data, cur_channel_id=None):
             ####### specific update for dynamic CID table #######
             if value == 'Code': # 2-side channel
                 if choose == 2:
-                    dynamic_CID_table[inner['Src_CID']] = inner['PSM']
+                    if inner['Src_CID'] in dynamic_CID_table and dynamic_CID_table[inner['Src_CID']] != inner['PSM']:
+                        pass
+                    else:
+                        dynamic_CID_table[inner['Src_CID']] = inner['PSM']
                 elif choose == 3:
                     dynamic_CID_table[inner['Dst_CID']] = dynamic_CID_table[inner['Src_CID']]
             #####################################################
@@ -202,11 +267,15 @@ def parse_field(field, data, cur_channel_id=None):
             break
         
         elif type(value) is int:
+
             if value == -10: # multiplexing
                 end8 = int(end/8)
                 op_name = dynamic_CID_table[cur_channel_id]
 
-                inner, _ = parse_field(psm_field[op_name], data[end8:], cur_channel_id)
+                if data_start_status == True and len(data[end8:]) > 10: # parse A2DP data
+                    inner, _ = parse_field(a2dp_field[data_service_type], data[end8:], cur_channel_id)
+                else: # parse PSM field data
+                    inner, _ = parse_field(psm_field[op_name], data[end8:], cur_channel_id)
                 ret.update({dynamic_CID_table_name[op_name]:inner})
             elif value < 0:
                 end8 = int(end/8)
@@ -221,9 +290,10 @@ def parse_field(field, data, cur_channel_id=None):
                 ret.update({
                     key: typeValue
                 })
+
                 if key == 'Channel_ID': cur_channel_id = ret['Channel_ID']
+                if key == 'Codec_Type': data_service_type = ret['Codec_Type']
         elif type(value) is dict:  
-            # guide the correct event parameter
             end8 = int(end/8)
             value = value[ret['Event']] if 'Event' in ret else value
             if 'Length' not in ret:
@@ -240,8 +310,8 @@ def parse_field(field, data, cur_channel_id=None):
 
     return ret, data
 
-def int_from_bits(data, start, end, endian='little'):
-   num = int.from_bytes(data, endian) 
+def int_from_bits(data, start, end):
+   num = int.from_bytes(data, 'little') 
    return (num>>start) & ((1<<(end-start))-1)
 
 # on Case 4(event), Event code converts to Event name by its code.

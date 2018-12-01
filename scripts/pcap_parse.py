@@ -65,23 +65,3 @@ for packet in packets:
     input()
 print()
 print('packet numbers: {}'.format(len(packets)))
-
-####################Print Results########################################## 
-'''
-print('Result:')
-typeA = set()
-typeB = set()
-typeC = set()
-typeD = set()
-for packet in packets:
-    if packet['packet_type'] == 1:
-        typeA.add((packet['data']['OGF'], packet['data']['OCF']))
-    if packet['packet_type'] == 2:
-        typeB.add((packet['data']['Handle']))
-    if packet['packet_type'] == 3:
-        typeB.add((packet['data']['Handle']))
-    if packet['packet_type'] == 4:
-        typeB.add((packet['data']['Event']))
-
-print('TypeA: {}\nlen={}\n\nTypeB: {}\nlen={}\n\nTypeC: {}\nlen={}\n\nTypdeD: {}\nlen={}\n'.format(typeA, len(typeA), typeB, len(typeB), typeC, len(typeC), typeD, len(typeD)))
-'''
