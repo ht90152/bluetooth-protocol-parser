@@ -16,6 +16,7 @@ from field_spec import header_field, data_field
 from field_spec import parse_field
 from field_spec import int_from_bits
 import os
+import traceback
 
 # temporary input for testing
 print(os.listdir('../pcap_files'))
@@ -33,31 +34,35 @@ data = data[24:] # remove global header
 packets = list()
 tot_len = len(data)
 
-while data: 
-    print('Progress: {}'.format(len(data)/tot_len), end='\r')
-    # parse packet header
-    pkt, data = parse_field(header_field, data)
+try:
+    while data: 
+        print('Progress: {}'.format(len(data)/tot_len), end='\r')
+        # parse packet header
+        pkt, data = parse_field(header_field, data)
 
-    # parse packet data and the remaining data
-    packet_data, data = parse_field(data_field[pkt['packet_type']], data)
-    unparsed_data = data[:packet_data['Length']]
-    
-    pkt.update({'data': packet_data, 'unparsed_data': unparsed_data})
-    data = data[packet_data['Length']:]
+        # parse packet data and the remaining data
+        packet_data, data = parse_field(data_field[pkt['packet_type']], data)
+        unparsed_data = data[:packet_data['Length']]
+        
+        pkt.update({'data': packet_data})
+        data = data[packet_data['Length']:]
 
-    # discard packet data
-    pkt['incl_len'] -= 4
-    pkt['orig_len'] -= 4
-    packets.append(pkt)
+        # discard packet data
+        pkt['incl_len'] -= 4
+        pkt['orig_len'] -= 4
+        packets.append(pkt)
+except Exception as e:
+    traceback.print_exc()
+    pass
 
 ########Print parsed packets (Uncomment to print)##############
-'''
+nn = 1
 for packet in packets:
-    print(packet)
+    print(nn, packet)
+    nn+=1
     input()
 print()
 print('packet numbers: {}'.format(len(packets)))
-'''
 
 ####################Print Results########################################## 
 print('Result:')
