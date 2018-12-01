@@ -41,7 +41,10 @@ try:
         pkt, data = parse_field(header_field, data)
 
         # parse packet data and the remaining data
-        packet_data, data = parse_field(data_field[pkt['packet_type']], data)
+        try:
+            packet_data, data = parse_field(data_field[pkt['packet_type']], data)
+        except KeyboardInterrupt:
+            pass
         unparsed_data = data[:packet_data['Length']]
         
         pkt.update({'data': packet_data})
@@ -51,8 +54,7 @@ try:
         pkt['incl_len'] -= 4
         pkt['orig_len'] -= 4
         packets.append(pkt)
-except Exception as e:
-    traceback.print_exc()
+except KeyboardInterrupt:
     pass
 
 ########Print parsed packets (Uncomment to print)##############
@@ -65,6 +67,7 @@ print()
 print('packet numbers: {}'.format(len(packets)))
 
 ####################Print Results########################################## 
+'''
 print('Result:')
 typeA = set()
 typeB = set()
@@ -81,4 +84,4 @@ for packet in packets:
         typeB.add((packet['data']['Event']))
 
 print('TypeA: {}\nlen={}\n\nTypeB: {}\nlen={}\n\nTypeC: {}\nlen={}\n\nTypdeD: {}\nlen={}\n'.format(typeA, len(typeA), typeB, len(typeB), typeC, len(typeC), typeD, len(typeD)))
-
+'''
