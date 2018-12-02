@@ -190,10 +190,46 @@ avctp_field = {
     'Other_Data': -1
 }
 
+obex_object_push_field = {
+    'ReqSeq': 6,
+    'Seg_and_reassembly': 2,
+    'Frame_type': 1,
+    'TxSeq': 6,
+    'R': 1,
+    'OBEX': {
+        'Opcode': 7,
+        'Final_Flag': 1,
+        'Length': 16,
+        'Choose': 'Opcode',
+        0: {
+            'Version': 8,
+            'Flags': 8,
+            'Max_Length': 16,
+            'Headers': {
+                'Meaning': 6,
+                'Encoding': 2,
+                'Count': 32,
+                'Count_BIG_ENDIAN': True
+            },
+            'Max_Length_BIG_ENDIAN': True
+        },
+        -1: {
+            'Data': -1
+        },
+        'Name': {
+            0: 'Connect',
+            -1: 'Others'
+        },
+        'Length_BIG_ENDIAN': True,
+    },
+    'FCS': 16,
+}
+
 psm_field = {
     1: sdp_field,
     23: avctp_field,
     25: avdtp_field,
+    4105: obex_object_push_field
 }
 
 a2dp_field = {
@@ -222,7 +258,7 @@ dynamic_CID_table_name = {
     1: 'SDP',
     23: 'AVCTP',
     25: 'AVDTP',
-    4105: 'no!'
+    4105: 'OBEX Object Push'
 }
 
 data_start_status = False
@@ -275,6 +311,8 @@ def parse_field(field, data, cur_channel_id=None):
                 if data_start_status == True and len(data[end8:]) > 10: # parse A2DP data
                     inner, _ = parse_field(a2dp_field[data_service_type], data[end8:], cur_channel_id)
                 else: # parse PSM field data
+                    if op_name not in psm_field: # Dynamic PSM
+                        op_name = -1
                     inner, _ = parse_field(psm_field[op_name], data[end8:], cur_channel_id)
                 ret.update({dynamic_CID_table_name[op_name]:inner})
             elif value < 0:
@@ -284,7 +322,10 @@ def parse_field(field, data, cur_channel_id=None):
                 })
             else:  # normal usage
                 tmp_hci_type = hci_type
-                hci_type, typeValue = typeCode_to_typeValue(key, int_from_bits(data, end, end + value))
+                if key+'_BIG_ENDIAN' in field.keys():
+                    endian = 'big'
+                else: endian = 'little'
+                hci_type, typeValue = typeCode_to_typeValue(key, int_from_bits(data, end, end + value, endian))
                 hci_type = hci_type if tmp_hci_type == 0 else tmp_hci_type  # if hci_type is changed, then restoring hci_type by tmp_value
                 check_push_value_count += 1
                 ret.update({
@@ -310,9 +351,16 @@ def parse_field(field, data, cur_channel_id=None):
 
     return ret, data
 
-def int_from_bits(data, start, end):
+def int_from_bits(data, start, end, endian='little'):
    num = int.from_bytes(data, 'little') 
-   return (num>>start) & ((1<<(end-start))-1)
+   ret = (num>>start) & ((1<<(end-start))-1)
+   if endian == 'big':
+       return int.from_bytes(
+               ret.to_bytes(int((ret.bit_length()+7)/8), 'big'),
+               'little'
+               )
+
+   return ret
 
 # on Case 4(event), Event code converts to Event name by its code.
 # e.g, Event code : 14H (20d) > Event name: Mode Change

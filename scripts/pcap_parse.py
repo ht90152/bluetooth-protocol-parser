@@ -34,9 +34,12 @@ data = data[24:] # remove global header
 packets = list()
 tot_len = len(data)
 
+cc = 1
 try:
     while data: 
-        print('Progress: {}'.format(len(data)/tot_len), end='\r')
+        print(cc, end='\r')
+        cc += 1
+        #print('Progress: {}'.format(len(data)/tot_len), end='\r')
         # parse packet header
         pkt, data = parse_field(header_field, data)
 
