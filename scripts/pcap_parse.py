@@ -30,34 +30,46 @@ global_header = data[:24]
 data = data[24:] # remove global header
 
 packets = list()
+tot_len = len(data)
 
-while data: 
-    # parse packet header
-    pkt, data = parse_field(header_field, data)
+cc = 1
+try:
+    while data: 
+        print('Data: {}, Progress: {}'.format(cc, len(data)/tot_len), end='\r')
+        cc += 1
+        # parse packet header
+        pkt, data = parse_field(header_field, data)
 
-    # parse packet data and the remaining data
-    packet_data, data = parse_field(data_field[pkt['packet_type']], data)
-    pkt.update({'data': packet_data})
-    #unparsed_data = data[:packet_data['Length']]
-    #pkt.update({'unparsed_data': unparsed_data})
+        # parse packet data and the remaining data
+        try:
+            packet_data, data = parse_field(data_field[pkt['packet_type']], data)
+        except KeyboardInterrupt as e:
+            pass
+        pkt.update({'data': packet_data})
+        #unparsed_data = data[:packet_data['Length']]
+        #pkt.update({'unparsed_data': unparsed_data})
 
-    data = data[packet_data['Length']:]
-
-    # discard packet data
-    pkt['incl_len'] -= 4
-    pkt['orig_len'] -= 4
-    packets.append(pkt)
+        data = data[packet_data['Length']:]
     
-    if(len(packets) >= 28):
-        break
+        # discard packet data
+        pkt['incl_len'] -= 4
+        pkt['orig_len'] -= 4
+        packets.append(pkt)
+        '''
+        if(len(packets) >= 28):
+            break
+        '''
+except KeyboardInterrupt:
+    pass
 
 #################Print parsed packets#####################################
-
+'''
 for packet in packets:
     print(packet)
+    input()
 print()
 print('packet numbers: {}'.format(len(packets)))
-
+'''
 
 ####################Print Results########################################## 
 print('Result:')
