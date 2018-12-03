@@ -1,80 +1,17 @@
 from event_contents import event_code, event_parameters
+from hci_ocf import cmd_code, cmd_parameters
 
-l2cap_data = {
+acl_data = {
     'Length': 16,
     'Channel_ID': 16,
-    'Choose': 'Channel_ID',
-    0x0001: {
-        'Code': 8,
-        'Identifier': 8,
-        'Length': 16,
-        'Choose': 'Code',
-        2: {
-            'PSM': 16,
-            'Src_CID': 16
-        },
-        3: {
-            'Dst_CID': 16, # This two CIDs must be linked to their upper layer protocol by PSM of Code 0x02 
-            'Src_CID': 16,  # This two CIDs must be linked to their upper layer protocol by PSM of Code 0x02
-            'Result': 16,
-            'Status': 16
-        },
-        4: {
-            'Dst_CID': 16, 
-            'Flags': 16,
-            'Config_Opt': 32
-        },
-        5: {
-            'Src_CID': 16,
-            'Flags': 16,
-            'Result': 16,
-            'Config': 16,
-        },
-        6: {
-            'Dst_CID': 16,
-            'Src_CID': 16
-        },
-        7: {
-            'Dst_CID': 16,
-            'Src_CID': 16
-        },
-        10: {
-            'InfoType': 16
-        },
-        11: {
-            'InfoType': 16,
-            'Result': 16,
-            'Data': -1
-        },
-        'Name': {
-            2: 'Con_req',
-            3: 'Con_res',
-            4: 'Config_req',
-            5: 'Config_res',
-            6: 'Discon_req',
-            7: 'Discon_res',
-            10: 'Info_req',
-            11: 'Info_res'
-        }
-    },
-    0x0002: {
-        '2': '2',
-    },
-    -1: {
-        'Data': -10, # This part of data will be parsed later (after getting the upper protocol)
-        # -10 means reserved to parse later
-    },
-    'Name': {
-        0x0001: 'Signaling Channel',
-        0x0002: '0x0002',
-        -1    : 'Dynamic allocated' # TODO: change this to correct name later
-    }
+    'Payload': -1
 }
 
 hci_command = {
     'OCF': 10,
     'OGF': 6,
-    'Length': 8
+    'Length': 8,
+    'Parameter': cmd_parameters(1)
 }
 
 hci_acl_data = {
@@ -82,7 +19,7 @@ hci_acl_data = {
     'PB_Flag': 2,
     'BC_Flag': 2,
     'Length': 16,
-    'acl_data': l2cap_data
+    'acl_data': acl_data
 }
 
 hci_sync_data = {
@@ -114,135 +51,61 @@ data_field = {
     4: hci_event,
 }
 
-sdp_field = {
-    'PDU': 8,
-    'Transaction_ID': 16,
-    'Length': 16,
-    'Parameters': -1
-}
 
-avdtp_field = { 
-    'Msg_type': 2,
-    'Packet_type': 2,
-    'Transaction': 4,
-    'Choose': 'Packet_type',
-    0: {
-        'Signal_ID': 6,
-        'RFA': 2,
-        'Other_data': -1
-    },
-    1: {
-        'NOSP': 8,
-        'Signal_ID': 6,
-        'RFA': 2,
-    },
-    2: {
-    },
-    3: {
-    },
-    'Name': {
-        0: 'Single_Packet',
-        1: 'Start_Packet',
-        2: 'Continue_Packet',
-        3: 'End_Packet'
-    }
-}
-
-avctp_field = { # TODO: this might be wrong
-    'IPID': 1,
-    'C/R': 1,
-    'Packet_type': 2,
-    'Transaction': 4,
-    'Profile_ID': 16,
-    'Other_Data': -1
-}
-
-psm_field = {
-    1: sdp_field,
-    23: avctp_field,
-    25: avdtp_field,
-    4105: {  # This is actually not the real one, its dynamically allocated!
-    }
-}
-
-dynamic_CID_table = dict()
-dynamic_CID_table_name = {
-    1: 'SDP',
-    23: 'AVCTP',
-    25: 'AVDTP',
-    4105: 'no!'
-}
-
-def parse_field(field, data, cur_channel_id=None):
+def parse_field(field, data):
     hci_type = check_push_value_count = 0
+    check_cmd_count = 0
     ret = dict()
     end = 0
     for key, value in field.items():
         if key is None:
             pass
-        elif key == 'Choose':
-            choose = ret[value]
-            if choose not in field: choose = -1
-
-            end8 = int(end/8)
-            if 'Length' not in ret:
-                inner, _ = parse_field(field[choose], data[end8:], cur_channel_id)
-            else:
-                inner, _ = parse_field(field[choose], data[end8: end8+ret['Length']], cur_channel_id)
-            ret.update(inner)
-
-            ####### specific update for dynamic CID table #######
-            if value == 'Code': # 2-side channel
-                if choose == 2:
-                    dynamic_CID_table[inner['Src_CID']] = inner['PSM']
-                elif choose == 3:
-                    dynamic_CID_table[inner['Dst_CID']] = dynamic_CID_table[inner['Src_CID']]
-            #####################################################
-
-            break
-        
         elif type(value) is int:
-            if value == -10: # multiplexing
-                end8 = int(end/8)
-                op_name = dynamic_CID_table[cur_channel_id]
-
-                inner, _ = parse_field(psm_field[op_name], data[end8:], cur_channel_id)
-                ret.update({dynamic_CID_table_name[op_name]:inner})
-            elif value < 0:
-                end8 = int(end/8)
+            if value < 0:
+                end8 = int(end / 8)
+                # value < -1 -> special case and convert to decimal number
                 ret.update({
                     key: data[end8:] if value > -2 else int.from_bytes(data[end8:], 'little')
                 })
-            else:  # normal usage
+            else:
                 tmp_hci_type = hci_type
                 hci_type, typeValue = typeCode_to_typeValue(key, int_from_bits(data, end, end + value))
+                if(key == 'OGF'):
+                    hci_command['Parameter'] = cmd_parameters(typeValue)
                 hci_type = hci_type if tmp_hci_type == 0 else tmp_hci_type  # if hci_type is changed, then restoring hci_type by tmp_value
                 check_push_value_count += 1
                 ret.update({
                     key: typeValue
                 })
-                if key == 'Channel_ID': cur_channel_id = ret['Channel_ID']
-        elif type(value) is dict:  
+        elif type(value) is dict:
+            end8 = int(end / 8)
             # guide the correct event parameter
-            end8 = int(end/8)
             value = value[ret['Event']] if 'Event' in ret else value
-            if 'Length' not in ret:
-                inner, _ = parse_field(value, data[end8:], cur_channel_id)
-            else: inner, _ = parse_field(value, data[end8: end8+ret['Length']], cur_channel_id)
+            if('OCF' in ret and check_cmd_count == 0):
+                check_cmd_count = 1
+                value = value[cmd_code(ret['OGF'])[ret['OCF']]] if 'OCF' in ret else value
+                hci_ocf, vlue_ocf = update_cmd(value, data, end)
+                ret.update({
+                    'Parameter': hci_ocf
+                })
+                continue
+            inner, _ = parse_field(value, data[end8: end8 + ret['Length']])
             ret.update({key: inner})
             continue
-
         if check_push_value_count == 1: update_right_value_in_dict(field)
-
         end += value
 
-    data = data[int(end/8):]
+    data = data[int(end / 8):]
 
     return ret, data
 
+
 def int_from_bits(data, start, end, endian='little'):
-   num = int.from_bytes(data, endian) 
-   return (num>>start) & ((1<<(end-start))-1)
+    num = int.from_bytes(data, 'little')
+    ret = (num>>start) & ((1<<(end-start))-1)
+    if endian == 'big':
+        return int.from_bytes(ret.to_bytes(int((ret.bit_length()+7)/8), 'big'), 'little')
+    return ret
 
 # on Case 4(event), Event code converts to Event name by its code.
 # e.g, Event code : 14H (20d) > Event name: Mode Change
@@ -263,7 +126,6 @@ def typeCode_to_typeValue(key, pure_int):
     else:
         return 0, pure_int
 
-
 def update_right_value_in_dict(data_dict):
     # get first key and value to update last parameter
     first_parmtr = [list(data_dict.keys())[0], list(data_dict.values())[0]]
@@ -272,3 +134,20 @@ def update_right_value_in_dict(data_dict):
         # -1 and -2 belong to special case, -3 and -4 belong to reserved field
         if type(value) is int and value < -4:
             value = value * -1 * first_parmtr[1]  # index 1 is first value in dict
+            
+def update_cmd(data_dict, data, end):
+    ret = dict()
+    for key, value in data_dict.items():
+        if(type(value) is int and value > 0):
+            if(key == 'BD_ADDR' or key == 'Link_Key'):
+                ret.update({
+                    key: int_from_bits(data, end, end + value*8).to_bytes(value, 'little').hex()
+                })
+            else:
+                ret.update({
+                    key: int_from_bits(data, end, end + value*8)
+                })
+            #print(hex(int_from_bits(data, end, end + 8)))
+        end += value*8
+    data = data[int(end / 8):]
+    return ret, data
