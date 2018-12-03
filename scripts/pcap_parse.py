@@ -14,9 +14,7 @@ typedef struct pcaprec_hdr_s {
 '''
 from field_spec import header_field, data_field
 from field_spec import parse_field
-from field_spec import int_from_bits
 import os
-import traceback
 
 # temporary input for testing
 print(os.listdir('../pcap_files'))
@@ -37,34 +35,39 @@ tot_len = len(data)
 cc = 1
 try:
     while data: 
-        print(cc, end='\r')
+        print('Data: {}, Progress: {}'.format(cc, len(data)/tot_len), end='\r')
         cc += 1
-        #print('Progress: {}'.format(len(data)/tot_len), end='\r')
         # parse packet header
         pkt, data = parse_field(header_field, data)
 
-        # parse packet data and the remaining data
+    # parse packet data and the remaining data
         try:
             packet_data, data = parse_field(data_field[pkt['packet_type']], data)
-        except KeyboardInterrupt:
+        except KeyboardInterrupt as e:
             pass
-        unparsed_data = data[:packet_data['Length']]
-        
+
         pkt.update({'data': packet_data})
+        #unparsed_data = data[:packet_data['Length']]
+        #pkt.update({'unparsed_data': unparsed_data})
+
         data = data[packet_data['Length']:]
 
         # discard packet data
         pkt['incl_len'] -= 4
         pkt['orig_len'] -= 4
         packets.append(pkt)
+        
+        '''
+        if(len(packets) >= 28):
+            break
+        '''
 except KeyboardInterrupt:
     pass
 
-########Print parsed packets (Uncomment to print)##############
-nn = 1
+#################Print parsed packets#####################################
+
 for packet in packets:
-    print(nn, packet)
-    nn+=1
+    print(packet)
     input()
 print()
 print('packet numbers: {}'.format(len(packets)))
