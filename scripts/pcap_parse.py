@@ -14,9 +14,7 @@ typedef struct pcaprec_hdr_s {
 '''
 from field_spec import header_field, data_field
 from field_spec import parse_field
-from field_spec import int_from_bits
 import os
-import traceback
 
 # temporary input for testing
 print(os.listdir('../pcap_files'))
@@ -32,42 +30,36 @@ global_header = data[:24]
 data = data[24:] # remove global header
 
 packets = list()
-tot_len = len(data)
 
-try:
-    while data: 
-        print('Progress: {}'.format(len(data)/tot_len), end='\r')
-        # parse packet header
-        pkt, data = parse_field(header_field, data)
+while data: 
+    # parse packet header
+    pkt, data = parse_field(header_field, data)
 
-        # parse packet data and the remaining data
-        try:
-            packet_data, data = parse_field(data_field[pkt['packet_type']], data)
-        except KeyboardInterrupt:
-            pass
-        unparsed_data = data[:packet_data['Length']]
-        
-        pkt.update({'data': packet_data})
-        data = data[packet_data['Length']:]
+    # parse packet data and the remaining data
+    packet_data, data = parse_field(data_field[pkt['packet_type']], data)
+    pkt.update({'data': packet_data})
+    #unparsed_data = data[:packet_data['Length']]
+    #pkt.update({'unparsed_data': unparsed_data})
 
-        # discard packet data
-        pkt['incl_len'] -= 4
-        pkt['orig_len'] -= 4
-        packets.append(pkt)
-except KeyboardInterrupt:
-    pass
+    data = data[packet_data['Length']:]
 
-########Print parsed packets (Uncomment to print)##############
-nn = 1
+    # discard packet data
+    pkt['incl_len'] -= 4
+    pkt['orig_len'] -= 4
+    packets.append(pkt)
+    
+    if(len(packets) >= 28):
+        break
+
+#################Print parsed packets#####################################
+
 for packet in packets:
-    print(nn, packet)
-    nn+=1
-    input()
+    print(packet)
 print()
 print('packet numbers: {}'.format(len(packets)))
 
+
 ####################Print Results########################################## 
-'''
 print('Result:')
 typeA = set()
 typeB = set()
@@ -84,4 +76,3 @@ for packet in packets:
         typeB.add((packet['data']['Event']))
 
 print('TypeA: {}\nlen={}\n\nTypeB: {}\nlen={}\n\nTypeC: {}\nlen={}\n\nTypdeD: {}\nlen={}\n'.format(typeA, len(typeA), typeB, len(typeB), typeC, len(typeC), typeD, len(typeD)))
-'''
